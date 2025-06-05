@@ -1,7 +1,7 @@
 ---
-title: "Final Project"
+title: "Evolution Poster"
 author: "Diana Gao"
-date: "2024-12-10"
+date: "2025-6-1"
 output:
   html_document:
     toc: TRUE
@@ -70,11 +70,6 @@ data_3d <- read_csv(here("data", "clean_morpho_diet.csv")) # data from mosleh et
 tree_name <- file.path(here("data", "Lerner_etal_2011_CurrBio_honeycreepers_mod.newick"))
 tree <- read.newick(tree_name)
 plot(tree) # test that the tree read in correctly
-
-# tree from luke campillo
-tree_lc <- file.path("C:/Users/diana/OneDrive/Desktop/grad research/honeycreepers/phylopath_tree_rev/phylopath_tree_rev/output/all_finch_MRC.tree")
-tree_lc <- read.tree(tree_lc)
-plot(tree_lc)
 ```
 
 
@@ -477,8 +472,8 @@ ggplot(morpho_sim_W_2L, aes(x = phylo_dist, y = morpho_dist))+
 
 ### Just real data
 
-#### Plain diff
-```{r}
+#### Plain data
+```{r, plain_s}
 # s-----------------------------
 ggplot(s_3d_phylo, aes(x = phylo_dist, y = s_dist)) +
   geom_point() +
@@ -491,9 +486,31 @@ ggplot(s_3d_phylo, aes(x = phylo_dist, y = s_dist)) +
        ) + 
   theme_bw()
 ```
+#### Diff per sp, plotted on phylogeny
+
+```{r, diff_bm_s}
+# make sure data joins/matches to tree ok 
+tree_3d$tip.label <- str_to_lower(tree_3d$tip.label)
+
+# make diff on log scale (bc akiapolaau is too crazy high) 
+s_greater_bm_by_sp_log <- s_greater_bm_by_sp %>%
+  mutate(diff = log(diff)) %>%
+  rename(label = sp) # tip label col must be named label for ggtree
+
+# plot
+p <- ggtree(tree_3d) %<+% s_greater_bm_by_sp_log + 
+  geom_label(aes(label = label, fill = diff), label.size = NA, color = "black", hjust = 0, nudge_x = 0.02) +
+  scale_fill_viridis(option = "D", name = "log diff") +
+  theme(legend.position=c(.2, .8))
+
+p + xlim(0, max(p$data$x, na.rm = TRUE) + 1) # the labels keep hanging off so putting a lil more space on x
+
+```
+
+grey = no diff from null 
 
 #### Diff per diet
-```{r}
+```{r, diff_bm_s_diet}
 ggplot(s_greater_bm_diet, aes(x = diet.y, y = avg_diff)) +
   geom_col() + 
   geom_errorbar(aes(ymin = (avg_diff - stdev), ymax = (avg_diff + stdev)))
@@ -502,7 +519,7 @@ ggplot(s_greater_bm_diet, aes(x = diet.y, y = avg_diff)) +
 ### + brownian data
 
 #### Brownian quantile overlay
-```{r}
+```{r, quantile_s}
 ggplot() +
   geom_point(s_3d_phylo, mapping = aes(x = phylo_dist, y = s_dist))+
   geom_smooth(s_3d_phylo, mapping = aes(x = phylo_dist, y = s_dist), method = 'lm') +
@@ -512,7 +529,7 @@ ggplot() +
 ```
 
 #### Brownian trend line overlay 
-```{r}
+```{r. bm_trend_s}
 ggplot() + 
   geom_point(s_3d_phylo, mapping = aes(x = phylo_dist, y = s_dist))+
   geom_smooth(s_3d_phylo, mapping = aes(x = phylo_dist, y = s_dist), method = 'lm', color = "black") +
@@ -521,7 +538,7 @@ ggplot() +
 ```
 
 #### Brownian quantile + trend line overlay 
-```{r}
+```{r, bm_trend_quantile_s}
 ggplot() + 
   geom_point(s_3d_phylo, mapping = aes(x = phylo_dist, y = s_dist))+
   geom_smooth(s_3d_phylo, mapping = aes(x = phylo_dist, y = s_dist), method = 'lm', color = "black") +
@@ -537,7 +554,7 @@ ggplot() +
 ### Just real data
 
 #### Plain diff
-```{r}
+```{r, plain_w2L}
 ggplot(W_2L_3d_phylo, aes(x = phylo_dist, y = W_2L_dist)) +
   geom_point() +
   geom_smooth(method = 'lm') +
@@ -550,8 +567,31 @@ ggplot(W_2L_3d_phylo, aes(x = phylo_dist, y = W_2L_dist)) +
   theme_bw()
 ```
 
+#### Diff per sp, plotted on phylogeny
+
+```{r, diff_bm_w2l}
+# make sure data joins/matches to tree ok 
+tree_3d$tip.label <- str_to_lower(tree_3d$tip.label)
+
+# make diff on log scale (bc akiapolaau is too crazy high) 
+W_2L_greater_bm_by_sp_log <- W_2L_greater_bm_by_sp %>%
+  mutate(diff = log(diff)) %>%
+  rename(label = sp) # tip label col must be named label for ggtree
+
+# plot
+p <- ggtree(tree_3d) %<+% W_2L_greater_bm_by_sp_log + 
+  geom_label(aes(label = label, fill = diff), label.size = NA, color = "black", hjust = 0, nudge_x = 0.02) +
+  scale_fill_viridis(option = "D", name = "log diff") +
+  theme(legend.position=c(.2, .8))
+
+p + xlim(0, max(p$data$x, na.rm = TRUE) + 1) # the labels keep hanging off so putting a lil more space on x
+
+```
+
+grey = no dif from null
+
 #### Diff per diet
-```{r}
+```{r, diff_bm_diet_w2l}
 ggplot(W_2L_bm_by_diet, aes(x = diet.y, y = avg_diff)) +
   geom_col() + 
   geom_errorbar(aes(ymin = (avg_diff - stdev), ymax = (avg_diff + stdev)))
@@ -560,7 +600,7 @@ ggplot(W_2L_bm_by_diet, aes(x = diet.y, y = avg_diff)) +
 ### + brownian data
 
 #### Brownian quantile overlay
-```{r}
+```{r, quantile_w2l}
 ggplot() +
   geom_point(W_2L_3d_phylo, mapping = aes(x = phylo_dist, y = W_2L_dist))+
   geom_smooth(W_2L_3d_phylo, mapping = aes(x = phylo_dist, y = W_2L_dist), method = 'lm') +
@@ -570,7 +610,7 @@ ggplot() +
 ```
 
 #### Brownian trend line overlay 
-```{r}
+```{r, bm_trend_w2l}
 ggplot() + 
   geom_point(W_2L_3d_phylo, mapping = aes(x = phylo_dist, y = W_2L_dist))+
   geom_smooth(W_2L_3d_phylo, mapping = aes(x = phylo_dist, y = W_2L_dist), method = 'lm', color = "black") +
@@ -579,7 +619,7 @@ ggplot() +
 ```
 
 #### Brownian quantile + trend line overlay 
-```{r}
+```{r, bm_trend_quantile_w2l}
 ggplot() + 
   geom_point(W_2L_3d_phylo, mapping = aes(x = phylo_dist, y = W_2L_dist))+
   geom_smooth(W_2L_3d_phylo, mapping = aes(x = phylo_dist, y = W_2L_dist), method = 'lm', color = "black") +
