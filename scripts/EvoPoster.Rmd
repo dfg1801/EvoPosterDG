@@ -464,6 +464,130 @@ ggplot(morpho_sim_W_2L, aes(x = phylo_dist, y = morpho_dist))+
   geom_smooth(method = "lm") 
 ```
 
+## Analysis/comparison of brownian to real data (lm)
+
+### Slope comparison 1:1
+
+```{r}
+# s==================================
+# real data -------------------------
+mod_s <- lm(s_dist ~ phylo_dist, data = s_3d_phylo)
+summary(mod_s)
+# BM sim data -----------------------
+mod_s_bm <- lm(morpho_dist ~ phylo_dist, data = morpho_sim_s)
+summary(mod_s_bm)
+
+# W/2L ==============================
+# real data -------------------------
+mod_W_2L <- lm(W_2L_dist ~ phylo_dist, data = W_2L_3d_phylo)
+summary(mod_W_2L)
+# BM sim data -----------------------
+mod_W_2L_bm <- lm(morpho_dist ~ phylo_dist, data = morpho_sim_W_2L)
+summary(mod_W_2L_bm)
+
+```
+
+### Probability dist. of brownian slopes
+
+```{r}
+# s---------------------------------------
+nsim = 20 #sample.size = how many values to generate at each time step
+time = seq(0, 11.552685, length.out = 20) #nsim = 10 equidistent time steps (defined by length.out)  
+# greatest phyol_dist is 11.552685)
+
+runs = 1000 # how many times to run sim -> extract slope from it
+
+# Setup storage vectors
+int_save_s = coef_save_s = numeric(runs)
+
+for (k in 1:runs) { 
+  for (i in seq_along(time)) {
+    # simulate 20 values using fold norm distribution
+    test <- rfoldnorm(nsim, mean = 0, sd = sqrt(time[i] * s_sd$s2))  
+    
+    # Save to row i of the matrix
+    morpho_dist_matrix[i, ] <- test
+    
+  }
+  # store row/col names
+  morpho_df_s <- as.data.frame(morpho_dist_matrix)
+  rownames(morpho_df_s) <- paste0("time_", round(time, 2))
+  colnames(morpho_df_s) <- paste0("sim_", 1:nsim)
+  
+  # then make it into a df
+  morpho_sim_s <- morpho_df_s %>%
+    mutate(across(everything(), ~replace_na(., 0))) %>%
+    rownames_to_column() %>%
+    mutate(time = rowname) %>%
+    pivot_longer(cols = sim_1:sim_20) %>%
+    mutate(time = str_remove(time, "time_")) %>%
+    select(!rowname) %>%
+    rename(phylo_dist = time, morpho_dist = value) %>%
+    mutate(phylo_dist = as.numeric(phylo_dist))
+  
+  # Model
+  model = lm(morpho_dist ~ phylo_dist, data = morpho_sim_s)
+  # save slope and p value
+  int_save_s[k] = coef(model)[1]  #save the intercept value for the treatment
+  coef_save_s[k] = coef(model)[2] #save the slope estimate
+}
+
+s_slope_dist <- data.frame(int_save_s, coef_save_s) # save slope + intercept in df
+
+# plot
+ggplot(s_slope_dist, aes(x = coef_save_s)) +
+  geom_histogram() + 
+  geom_vline(xintercept = coef(mod_s)[2], color = "red")
+
+# W/2L---------------------------------------
+nsim = 20 #sample.size = how many values to generate at each time step
+time = seq(0, 11.552685, length.out = 20) #nsim = 10 equidistent time steps (defined by length.out)  
+# greatest phyol_dist is 11.552685)
+
+runs = 1000 # how many times to run sim -> extract slope from it
+
+# Setup storage vectors
+int_save_W_2L = coef_save_W_2L = numeric(runs)
+
+for (k in 1:runs) { 
+  for (i in seq_along(time)) {
+    # simulate 20 values using fold norm distribution
+    test <- rfoldnorm(nsim, mean = 0, sd = sqrt(time[i] * W_2L_sd$s2))  
+    
+    # Save to row i of the matrix
+    morpho_dist_matrix[i, ] <- test
+    
+  }
+  # store row/col names
+  morpho_df_W_2L <- as.data.frame(morpho_dist_matrix)
+  rownames(morpho_df_W_2L) <- paste0("time_", round(time, 2))
+  colnames(morpho_df_W_2L) <- paste0("sim_", 1:nsim)
+  
+  # then make it into a df
+  morpho_sim_W_2L <- morpho_df_W_2L %>%
+    mutate(across(everything(), ~replace_na(., 0))) %>%
+    rownames_to_column() %>%
+    mutate(time = rowname) %>%
+    pivot_longer(cols = sim_1:sim_20) %>%
+    mutate(time = str_remove(time, "time_")) %>%
+    select(!rowname) %>%
+    rename(phylo_dist = time, morpho_dist = value) %>%
+    mutate(phylo_dist = as.numeric(phylo_dist))
+  
+  # Model
+  model = lm(morpho_dist ~ phylo_dist, data = morpho_sim_W_2L)
+  # save slope and p value
+  int_save_W_2L[k] = coef(model)[1]  #save the intercept value for the treatment
+  coef_save_W_2L[k] = coef(model)[2] #save the slope estimate
+}
+
+W_2L_slope_dist <- data.frame(int_save_W_2L, coef_save_W_2L) # save slope + intercept in df
+
+# plot
+ggplot(W_2L_slope_dist, aes(x = coef_save_W_2L)) +
+  geom_histogram() + 
+  geom_vline(xintercept = coef(mod_W_2L)[2], color = "red")
+```
 
 
 # Plots
@@ -547,6 +671,12 @@ ggplot() +
   geom_smooth(morpho_sim_s, mapping = aes(x = phylo_dist, y = morpho_dist), color = "cornflowerblue", method = "lm")
 ```
 
+#### Brownian slope probability distribution with honeycreeper slope marked
+```{r}
+ggplot(s_slope_dist, aes(x = coef_save_s)) +
+  geom_histogram() + 
+  geom_vline(xintercept = coef(mod_s)[2], color = "red")
+```
 
 
 ## Wc/2Lc
@@ -628,5 +758,11 @@ ggplot() +
   geom_smooth(morpho_sim_W_2L, mapping = aes(x = phylo_dist, y = morpho_dist), color = "cornflowerblue", method = "lm")
 ```
 
+#### Brownian slope probability distribution with honeycreeper slope marked
+```{r, slope_pd_w2l}
+ggplot(W_2L_slope_dist, aes(x = coef_save_W_2L)) +
+  geom_histogram() + 
+  geom_vline(xintercept = coef(mod_W_2L)[2], color = "red")
+```
 
 
