@@ -36,7 +36,6 @@ library(patchwork)
 library(car)
 library(ggResidpanel)
 library(VGAM)
-library(viridis)
 library(ggtree)
 
 #functions
@@ -336,7 +335,7 @@ W_2L_greater_bm_by_sp
 ```{r}
 morpho_3d_diet <- morpho_3d %>%
   mutate(sp = str_to_lower(common_name)) %>%
-  select(sp, diet.y) %>% #setup data to be joined to s data 
+  select(sp, diet.x) %>% #setup data to be joined to s data 
   distinct()
 
 # s------------------------------
@@ -346,7 +345,7 @@ s_greater_bm_diet <- s_greater_than_bm %>%
   select(!c(sp1, sp2)) %>%
   pivot_longer(cols = c(sp_a, sp_b), names_to = "role", values_to = "sp") %>%
   left_join(morpho_3d_diet) %>%
-  group_by(diet.y) %>%
+  group_by(diet.x) %>%
   summarise(diff_sum = sum(diff), num_sp = n_distinct(sp), stdev = sd(diff)) %>%
   mutate(avg_diff = diff_sum/num_sp) 
 
@@ -357,7 +356,7 @@ W_2L_bm_by_diet <- W_2L_greater_than_bm %>%
   select(!c(sp1, sp2)) %>%
   pivot_longer(cols = c(sp_a, sp_b), names_to = "role", values_to = "sp") %>%
   left_join(morpho_3d_diet) %>%
-  group_by(diet.y) %>%
+  group_by(diet.x) %>%
   summarise(diff_sum = sum(diff), num_sp = n_distinct(sp), stdev = sd(diff)) %>%
   mutate(avg_diff = diff_sum/num_sp) # only 1 insectivore, maui parrotbill with palila 
 
@@ -368,11 +367,11 @@ W_2L_greater_bm_by_sp$sp # these are the sp significantly diff from BM
 ### Plotting diff per diet 
 ```{r}
 # s-------------------------
-ggplot(s_greater_bm_diet, aes(x = diet.y, y = avg_diff)) +
+ggplot(s_greater_bm_diet, aes(x = diet.x, y = avg_diff)) +
   geom_col() + 
   geom_errorbar(aes(ymin = (avg_diff - stdev), ymax = (avg_diff + stdev)))
 # W/2L ----------------------
-ggplot(W_2L_bm_by_diet, aes(x = diet.y, y = avg_diff)) +
+ggplot(W_2L_bm_by_diet, aes(x = diet.x, y = avg_diff)) +
   geom_col() + 
   geom_errorbar(aes(ymin = (avg_diff - stdev), ymax = (avg_diff + stdev)))
 ```
@@ -380,6 +379,8 @@ ggplot(W_2L_bm_by_diet, aes(x = diet.y, y = avg_diff)) +
 
 For S - the one "insectivore, tree sap" sp is the akiapoaau lol. besides that, the nectivore, insectivore group has the highest average diff only counting the sp above BM line. 
 For W/2L - the "mamane seeds" sp is the palila. Interestingly, has a similar sum of diff as the akiapolaau's sharpening rate diff
+
+using the mosleh et al classificaiton of diet, there is a slightly more even spread for s, but for w/2l not so much. 
 
 notes:
 find trendline for the BM model 
@@ -489,13 +490,13 @@ summary(mod_W_2L_bm)
 
 ### Probability dist. of brownian slopes
 
-```{r}
+```{r bsim}
 # s---------------------------------------
 nsim = 20 #sample.size = how many values to generate at each time step
 time = seq(0, 11.552685, length.out = 20) #nsim = 10 equidistent time steps (defined by length.out)  
 # greatest phyol_dist is 11.552685)
 
-runs = 1000 # how many times to run sim -> extract slope from it
+runs = 2000 # how many times to run sim -> extract slope from it
 
 # Setup storage vectors
 int_save_s = coef_save_s = numeric(runs)
@@ -534,17 +535,26 @@ for (k in 1:runs) {
 
 s_slope_dist <- data.frame(int_save_s, coef_save_s) # save slope + intercept in df
 
+# cumulative dist function to find probability of observing real slope
+# P(x<=mean) = pnorm(x)
+mean_s_sim <- mean(s_slope_dist$coef_save_s)
+sd_s_sim <- sd(s_slope_dist$coef_save_s)
+
+pnorm(coef(mod_s)[2], mean = mean_s_sim, sd = sd_s_sim)
+
 # plot
 ggplot(s_slope_dist, aes(x = coef_save_s)) +
   geom_histogram() + 
-  geom_vline(xintercept = coef(mod_s)[2], color = "red")
+  geom_vline(xintercept = coef(mod_s)[2], color = "red") + 
+  theme_bw()
 
-# W/2L---------------------------------------
+
+# W/2L------------------------------------------------------------------------
 nsim = 20 #sample.size = how many values to generate at each time step
 time = seq(0, 11.552685, length.out = 20) #nsim = 10 equidistent time steps (defined by length.out)  
 # greatest phyol_dist is 11.552685)
 
-runs = 1000 # how many times to run sim -> extract slope from it
+runs = 2000 # how many times to run sim -> extract slope from it
 
 # Setup storage vectors
 int_save_W_2L = coef_save_W_2L = numeric(runs)
@@ -583,12 +593,21 @@ for (k in 1:runs) {
 
 W_2L_slope_dist <- data.frame(int_save_W_2L, coef_save_W_2L) # save slope + intercept in df
 
+# cumulative dist function to find probability of observing real slope
+# P(x<=mean) = pnorm(x)
+mean_W_2L_sim <- mean(W_2L_slope_dist$coef_save_W_2L)
+sd_W_2L_sim <- sd(W_2L_slope_dist$coef_save_W_2L)
+
+pnorm(coef(mod_W_2L)[2], mean = mean_W_2L_sim, sd = sd_W_2L_sim)
+
 # plot
 ggplot(W_2L_slope_dist, aes(x = coef_save_W_2L)) +
   geom_histogram() + 
-  geom_vline(xintercept = coef(mod_W_2L)[2], color = "red")
+  geom_vline(xintercept = coef(mod_W_2L)[2], color = "red") + 
+  theme_bw()
 ```
 
+Both S and W/2L have much lower slopes than the brownian expectation. This is especially true for S. Both are also nearer to 0 than the average of the brownian slopes This seems to imply that there is a weaker relationship between phylogenetic distance and morphology than should be expected. This makes sense, as this means forces other than phylogenetic history are shaping the bill morphology of the honeycreepers, something we already assume to be true per their status as an adaptive radiation 
 
 # Plots
 
@@ -613,31 +632,35 @@ ggplot(s_3d_phylo, aes(x = phylo_dist, y = s_dist)) +
 #### Diff per sp, plotted on phylogeny
 
 ```{r, diff_bm_s}
-# make sure data joins/matches to tree ok 
-tree_3d$tip.label <- str_to_lower(tree_3d$tip.label)
-
+# remove underscore from tip names
+tree_3d$tip.label <- str_replace(tree_3d$tip.label, "_", " ")
+  
 # make diff on log scale (bc akiapolaau is too crazy high) 
 s_greater_bm_by_sp_log <- s_greater_bm_by_sp %>%
   mutate(diff = log(diff)) %>%
-  rename(label = sp) # tip label col must be named label for ggtree
-
+  rename(label = sp) %>% # tip label col must be named label for ggtree
+  mutate(label = str_replace(label, "_", " ")) %>%
+  mutate(label = str_to_title(label))
+ 
 # plot
 p <- ggtree(tree_3d) %<+% s_greater_bm_by_sp_log + 
-  geom_label(aes(label = label, fill = diff), label.size = NA, color = "black", hjust = 0, nudge_x = 0.02) +
-  scale_fill_viridis(option = "D", name = "log diff") +
+  geom_label(aes(label = label), label.size = NA, color = "black", hjust = 0, nudge_x = 0.05) +
+  geom_tippoint(aes(color = diff), shape = 16, size = 3) +
+  scale_color_viridis_c(option = "plasma", name = "log(diff)") +
   theme(legend.position=c(.2, .8))
 
-p + xlim(0, max(p$data$x, na.rm = TRUE) + 1) # the labels keep hanging off so putting a lil more space on x
-
+p + xlim(0, max(p$data$x, na.rm = TRUE) + 1) # the labels keep hanging off
 ```
 
 grey = no diff from null 
+The akiapolaau has the highest difference in sharpening rate from the brownian expectation (15.09877201). No strong trends/phylogenetic groupings of difference. However, the poouli, the oldest split species, does not fall outside of the 95% quantile of the brownian null.
 
 #### Diff per diet
 ```{r, diff_bm_s_diet}
-ggplot(s_greater_bm_diet, aes(x = diet.y, y = avg_diff)) +
+ggplot(s_greater_bm_diet, aes(x = diet.x, y = avg_diff)) +
   geom_col() + 
-  geom_errorbar(aes(ymin = (avg_diff - stdev), ymax = (avg_diff + stdev)))
+  geom_errorbar(aes(ymin = (avg_diff - stdev), ymax = (avg_diff + stdev))) +
+  theme_bw()
 ```
 
 ### + brownian data
@@ -649,16 +672,18 @@ ggplot() +
   geom_smooth(s_3d_phylo, mapping = aes(x = phylo_dist, y = s_dist), method = 'lm') +
   geom_point(bm_s, mapping = aes(x = phylo_dist, y = morpho_dist), color = "blue") +
   geom_line(bm_s, mapping = aes(x = phylo_dist, y = morpho_dist), color = "blue") +
-  geom_area(bm_s, mapping = aes(x = phylo_dist, y = morpho_dist), fill = "skyblue", alpha = .3)
+  geom_area(bm_s, mapping = aes(x = phylo_dist, y = morpho_dist), fill = "skyblue", alpha = .3)+
+  theme_bw()
 ```
 
 #### Brownian trend line overlay 
-```{r. bm_trend_s}
+```{r, bm_trend_s}
 ggplot() + 
   geom_point(s_3d_phylo, mapping = aes(x = phylo_dist, y = s_dist))+
   geom_smooth(s_3d_phylo, mapping = aes(x = phylo_dist, y = s_dist), method = 'lm', color = "black") +
   geom_point(morpho_sim_s, mapping = aes(x = phylo_dist, y = morpho_dist), color = "skyblue", alpha = .25)+
-  geom_smooth(morpho_sim_s, mapping = aes(x = phylo_dist, y = morpho_dist), color = "cornflowerblue", method = "lm")
+  geom_smooth(morpho_sim_s, mapping = aes(x = phylo_dist, y = morpho_dist), color = "cornflowerblue", method = "lm") + 
+  theme_bw()
 ```
 
 #### Brownian quantile + trend line overlay 
@@ -668,14 +693,16 @@ ggplot() +
   geom_smooth(s_3d_phylo, mapping = aes(x = phylo_dist, y = s_dist), method = 'lm', color = "black") +
   geom_area(bm_s, mapping = aes(x = phylo_dist, y = morpho_dist), fill = "skyblue", alpha = .3) + 
   geom_point(morpho_sim_s, mapping = aes(x = phylo_dist, y = morpho_dist), color = "skyblue", alpha = .25)+
-  geom_smooth(morpho_sim_s, mapping = aes(x = phylo_dist, y = morpho_dist), color = "cornflowerblue", method = "lm")
+  geom_smooth(morpho_sim_s, mapping = aes(x = phylo_dist, y = morpho_dist), color = "cornflowerblue", method = "lm") + 
+  theme_bw()
 ```
 
 #### Brownian slope probability distribution with honeycreeper slope marked
 ```{r}
 ggplot(s_slope_dist, aes(x = coef_save_s)) +
   geom_histogram() + 
-  geom_vline(xintercept = coef(mod_s)[2], color = "red")
+  geom_vline(xintercept = coef(mod_s)[2], color = "red") + 
+  theme_bw()
 ```
 
 
@@ -700,18 +727,21 @@ ggplot(W_2L_3d_phylo, aes(x = phylo_dist, y = W_2L_dist)) +
 #### Diff per sp, plotted on phylogeny
 
 ```{r, diff_bm_w2l}
-# make sure data joins/matches to tree ok 
-tree_3d$tip.label <- str_to_lower(tree_3d$tip.label)
+# remove underscore from tip names
+tree_3d$tip.label <- str_replace(tree_3d$tip.label, "_", " ")
 
 # make diff on log scale (bc akiapolaau is too crazy high) 
 W_2L_greater_bm_by_sp_log <- W_2L_greater_bm_by_sp %>%
   mutate(diff = log(diff)) %>%
-  rename(label = sp) # tip label col must be named label for ggtree
+  rename(label = sp) %>% # tip label col must be named label for ggtree
+  mutate(label = str_replace(label, "_", " ")) %>%
+  mutate(label = str_to_title(label))
 
 # plot
 p <- ggtree(tree_3d) %<+% W_2L_greater_bm_by_sp_log + 
-  geom_label(aes(label = label, fill = diff), label.size = NA, color = "black", hjust = 0, nudge_x = 0.02) +
-  scale_fill_viridis(option = "D", name = "log diff") +
+  geom_label(aes(label = label), label.size = NA, color = "black", hjust = 0, nudge_x = 0.05) +
+  geom_tippoint(aes(color = diff), shape = 16, size = 3) +
+  scale_color_viridis_c(option = "plasma", name = "log(diff)") +
   theme(legend.position=c(.2, .8))
 
 p + xlim(0, max(p$data$x, na.rm = TRUE) + 1) # the labels keep hanging off so putting a lil more space on x
@@ -719,12 +749,14 @@ p + xlim(0, max(p$data$x, na.rm = TRUE) + 1) # the labels keep hanging off so pu
 ```
 
 grey = no dif from null
+The palila has the highest cumulative difference in w/2l from brownian null (4.41060632). There is not a strong apparent grouping for difference from brownian null. Even within the palila's sister group of the nihoa and laysan finch, they vary greatly in difference. Again, the oldest-split species (poouli) is not different from brownian null. 
 
 #### Diff per diet
 ```{r, diff_bm_diet_w2l}
-ggplot(W_2L_bm_by_diet, aes(x = diet.y, y = avg_diff)) +
+ggplot(W_2L_bm_by_diet, aes(x = diet.x, y = avg_diff)) +
   geom_col() + 
-  geom_errorbar(aes(ymin = (avg_diff - stdev), ymax = (avg_diff + stdev)))
+  geom_errorbar(aes(ymin = (avg_diff - stdev), ymax = (avg_diff + stdev))) + 
+  theme_bw()
 ```
 
 ### + brownian data
@@ -736,7 +768,8 @@ ggplot() +
   geom_smooth(W_2L_3d_phylo, mapping = aes(x = phylo_dist, y = W_2L_dist), method = 'lm') +
   geom_point(bm_W_2L, mapping = aes(x = phylo_dist, y = morpho_dist), color = "blue") +
   geom_line(bm_W_2L, mapping = aes(x = phylo_dist, y = morpho_dist), color = "blue") +
-  geom_area(bm_W_2L, mapping = aes(x = phylo_dist, y = morpho_dist), fill = "skyblue", alpha = .3)
+  geom_area(bm_W_2L, mapping = aes(x = phylo_dist, y = morpho_dist), fill = "skyblue", alpha = .3) + 
+  theme_bw()
 ```
 
 #### Brownian trend line overlay 
@@ -745,7 +778,8 @@ ggplot() +
   geom_point(W_2L_3d_phylo, mapping = aes(x = phylo_dist, y = W_2L_dist))+
   geom_smooth(W_2L_3d_phylo, mapping = aes(x = phylo_dist, y = W_2L_dist), method = 'lm', color = "black") +
   geom_point(morpho_sim_W_2L, mapping = aes(x = phylo_dist, y = morpho_dist), color = "skyblue", alpha = .25)+
-  geom_smooth(morpho_sim_W_2L, mapping = aes(x = phylo_dist, y = morpho_dist), color = "cornflowerblue", method = "lm")
+  geom_smooth(morpho_sim_W_2L, mapping = aes(x = phylo_dist, y = morpho_dist), color = "cornflowerblue", method = "lm") + 
+  theme_bw()
 ```
 
 #### Brownian quantile + trend line overlay 
@@ -755,14 +789,16 @@ ggplot() +
   geom_smooth(W_2L_3d_phylo, mapping = aes(x = phylo_dist, y = W_2L_dist), method = 'lm', color = "black") +
   geom_area(bm_W_2L, mapping = aes(x = phylo_dist, y = morpho_dist), fill = "skyblue", alpha = .3) + 
   geom_point(morpho_sim_W_2L, mapping = aes(x = phylo_dist, y = morpho_dist), color = "skyblue", alpha = .25)+
-  geom_smooth(morpho_sim_W_2L, mapping = aes(x = phylo_dist, y = morpho_dist), color = "cornflowerblue", method = "lm")
+  geom_smooth(morpho_sim_W_2L, mapping = aes(x = phylo_dist, y = morpho_dist), color = "cornflowerblue", method = "lm") + 
+  theme_bw()
 ```
 
 #### Brownian slope probability distribution with honeycreeper slope marked
 ```{r, slope_pd_w2l}
 ggplot(W_2L_slope_dist, aes(x = coef_save_W_2L)) +
   geom_histogram() + 
-  geom_vline(xintercept = coef(mod_W_2L)[2], color = "red")
+  geom_vline(xintercept = coef(mod_W_2L)[2], color = "red") + 
+  theme_bw()
 ```
 
 
